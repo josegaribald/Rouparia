@@ -1,0 +1,954 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>SGF - Sistema V21 (Fluxo Nuvem)</title>
+    
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/xlsx-js-style@1.2.0/dist/xlsx.bundle.min.js"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;700;900&display=swap');
+        
+        body { background-color: #0f172a; font-family: 'Inter', sans-serif; color: #1e293b; padding-bottom: 70px; overflow-x: hidden; }
+
+        /* MODAIS */
+        #telaBloqueio { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: #000; z-index: 9999; display: flex; justify-content: center; align-items: center; flex-direction: column; }
+        
+        #modalEditor { 
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%; 
+            background: rgba(0,0,0,0.8); z-index: 5000; 
+            display: none; justify-content: center; align-items: center; padding: 20px;
+        }
+        .editor-box { background: #fff; width: 100%; max-width: 500px; border-radius: 20px; border: 4px solid #2563eb; overflow: hidden; max-height: 90vh; display: flex; flex-direction: column; }
+        .editor-header { background: #2563eb; color: white; padding: 15px; font-weight: 900; display: flex; justify-content: space-between; align-items: center; }
+        .editor-body { padding: 15px; overflow-y: auto; }
+
+        /* GERAL */
+        .login-box { background: #1e293b; padding: 40px; border-radius: 20px; border: 4px solid #2563eb; text-align: center; width: 90%; max-width: 400px; }
+        .login-input { background: #0f172a; border: 2px solid #475569; color: white; font-size: 24px; text-align: center; letter-spacing: 5px; padding: 15px; border-radius: 10px; width: 100%; margin-bottom: 20px; outline: none; }
+        .btn-entrar { background: #2563eb; color: white; font-weight: 900; padding: 15px; width: 100%; border-radius: 10px; cursor: pointer; text-transform: uppercase; }
+        
+        .main-header { background: #fff; border-bottom: 5px solid #000; padding: 15px 20px; position: sticky; top: 0; z-index: 50; }
+        .header-title { font-size: 24px; font-weight: 900; color: #2563eb; text-transform: uppercase; }
+        .header-dash { display: flex; gap: 8px; background: #f1f5f9; padding: 6px 12px; border: 3px solid #000; border-radius: 16px; }
+        .dash-item { text-align: center; padding: 0 8px; border-right: 2px solid #cbd5e1; cursor: pointer; }
+        .dash-item:last-child { border-right: none; }
+        .dash-label { font-size: 7px; font-weight: 900; text-transform: uppercase; display: block; }
+        .dash-value { font-size: 14px; font-weight: 900; color: #000; }
+
+        .card-neo { border-radius: 24px; background: #fff; border: 4px solid #000; box-shadow: 10px 10px 0px #000; margin-bottom: 20px; }
+        .btn-neo { border: 3px solid #000; border-radius: 16px; font-weight: 900; text-transform: uppercase; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 5px; border-bottom: 6px solid #000; transition: all 0.1s; }
+        .btn-neo:active { transform: translateY(4px); border-bottom-width: 3px; }
+        
+        .search-container { position: relative; width: 100%; margin-bottom: 15px; margin-top: 10px; }
+        .search-input { width: 100%; padding: 12px 15px 12px 45px; border-radius: 50px; border: 2px solid #e2e8f0; background: #f8fafc; font-weight: bold; transition: 0.3s; outline: none; box-shadow: inset 0 2px 4px rgba(0,0,0,0.05); }
+        .search-input:focus { border-color: #3b82f6; background: #fff; box-shadow: 0 4px 12px rgba(59, 130, 246, 0.2); }
+        .search-icon { position: absolute; left: 15px; top: 50%; transform: translateY(-50%); color: #94a3b8; font-size: 18px; }
+
+        input, select { border: 3px solid #000; border-radius: 12px; padding: 10px; font-weight: bold; width: 100%; outline: none; background: white; font-size: 13px; }
+        .tab-content { display: none; }
+        .active-tab { display: block; animation: slideUp 0.2s ease-out; }
+        @keyframes slideUp { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+        
+        .item-estoque { background: white; border: 1px solid #cbd5e1; padding: 10px; border-radius: 8px; display: flex; justify-content: space-between; align-items: center; box-shadow: 0 1px 2px rgba(0,0,0,0.05); margin-bottom: 5px; border-left-width: 6px; }
+        .qtd-badge { background: #000; color: #fff; padding: 2px 8px; border-radius: 4px; font-size: 11px; font-weight: bold; }
+
+        .bg-azul { background: #dbeafe; color: #1e40af; border-bottom: 2px solid #2563eb; }
+        .bg-verde { background: #dcfce7; color: #166534; border-bottom: 2px solid #16a34a; }
+        .bg-branco { background: #f1f5f9; color: #475569; border-bottom: 2px solid #94a3b8; }
+        .bg-padrao { background: #e2e8f0; color: #334155; }
+        .border-azul { border-left-color: #2563eb !important; }
+        .border-verde { border-left-color: #16a34a !important; }
+        .border-branco { border-left-color: #e2e8f0 !important; }
+        .border-marrom { border-left-color: #78350f !important; }
+        .border-cinza { border-left-color: #64748b !important; }
+
+        .opt-reparo { font-size: 10px; padding: 6px 10px; border: 1px solid #cbd5e1; border-radius: 6px; background: #fff; font-weight: bold; margin-right: 4px; margin-bottom: 4px; display: inline-flex; align-items: center; gap: 5px; cursor: default; }
+        .opt-reparo:hover { background: #f1f5f9; }
+        .opt-reparo.selected { background: #fee2e2; color: #b91c1c; border-color: #ef4444; box-shadow: 0 2px 0 #b91c1c; }
+        
+        .footer-autor { 
+            position: fixed; bottom: 0; left: 0; width: 100%; 
+            background-color: #000000; color: white; padding: 12px; 
+            border-top: 4px solid #2563eb; z-index: 99999; 
+            display: flex; justify-content: center; align-items: center; 
+            gap: 10px; font-family: monospace; font-size: 11px; 
+            flex-wrap: wrap; text-align: center;
+        }
+    </style>
+</head>
+<body class="pb-10">
+
+    <div id="telaBloqueio">
+        <div class="login-box">
+            <i class="fa-solid fa-lock text-6xl text-blue-500 mb-4"></i>
+            <h2 class="text-white text-xl font-black mb-6 uppercase">Acesso Restrito</h2>
+            <input type="password" id="inputSenhaAno" class="login-input" placeholder="****" maxlength="4" onkeyup="if(event.key==='Enter'){event.preventDefault(); validarAcesso()}">
+            <button type="button" onclick="validarAcesso()" class="btn-entrar">ACESSAR</button>
+            <p id="msgErroLogin" class="text-red-500 font-bold text-xs mt-4 hidden">SENHA INCORRETA</p>
+        </div>
+    </div>
+
+    <div id="modalEditor">
+        <div class="editor-box">
+            <div class="editor-header">
+                <span id="editorTitulo">EDITANDO...</span>
+                <button onclick="fecharEditor()" class="text-white text-xl"><i class="fa-solid fa-times"></i></button>
+            </div>
+            <div class="editor-body">
+                <div class="bg-gray-100 p-3 rounded-lg mb-4 border border-gray-300">
+                    <p class="text-[10px] font-black text-gray-500 uppercase mb-2">Entregar nova peça:</p>
+                    <div class="flex gap-2">
+                        <select id="editPeca" class="text-xs"></select>
+                        <input type="text" id="editNum" placeholder="Nº" class="w-16 text-xs uppercase">
+                        <button onclick="adicionarItemFuncionario()" class="bg-green-600 text-white rounded px-3 font-bold text-xs"><i class="fa-solid fa-plus"></i></button>
+                    </div>
+                </div>
+                <p class="text-[10px] font-black text-blue-600 uppercase mb-2">Itens em posse:</p>
+                <div id="listaItensEditor" class="space-y-2"></div>
+            </div>
+        </div>
+    </div>
+
+    <div id="appContent" style="display: none;">
+        <header class="main-header">
+            <div class="max-w-6xl mx-auto flex flex-wrap justify-between items-center gap-4">
+                <div>
+                    <h1 class="header-title">Gestão Rouparia</h1>
+                    <div class="text-[10px] font-black uppercase text-gray-500">Sistema V21 (Hospedado no Google)</div>
+                </div>
+                <div class="header-dash">
+                    <div onclick="mudarAba('tab-lava')" class="dash-item"><span class="dash-label text-blue-600">Lava</span><span id="dashL" class="dash-value">0</span></div>
+                    <div onclick="mudarAba('tab-manu')" class="dash-item"><span class="dash-label text-red-600">Oficina</span><span id="dashM" class="dash-value">0</span></div>
+                    <div onclick="mudarAba('tab-inv')" class="dash-item"><span class="dash-label text-orange-600">Estoque</span><span id="dashE" class="dash-value">0</span></div>
+                    <div onclick="mudarAba('tab-operacao')" class="dash-item"><span class="dash-label text-green-600">Uso</span><span id="dashU" class="dash-value">0</span></div>
+                </div>
+            </div>
+        </header>
+
+        <main class="max-w-6xl mx-auto p-4">
+            <nav class="grid grid-cols-3 md:grid-cols-6 gap-2 mb-8 mt-4">
+                <button onclick="mudarAba('tab-troca')" class="btn-neo bg-white text-[10px] flex-col p-2"><i class="fa-solid fa-repeat text-xl"></i>TROCA</button>
+                <button onclick="mudarAba('tab-lava')" class="btn-neo bg-blue-100 text-[10px] flex-col p-2"><i class="fa-solid fa-truck-fast text-xl text-blue-600"></i>LAVA</button>
+                <button onclick="mudarAba('tab-manu')" class="btn-neo bg-red-100 text-[10px] flex-col p-2"><i class="fa-solid fa-screwdriver-wrench text-xl text-red-600"></i>OFICINA</button>
+                <button onclick="mudarAba('tab-equipe')" class="btn-neo bg-green-500 text-white text-[10px] flex-col p-2"><i class="fa-solid fa-users text-xl"></i>EQUIPE</button>
+                <button onclick="mudarAba('tab-inv')" class="btn-neo bg-orange-500 text-white text-[10px] flex-col p-2"><i class="fa-solid fa-box-archive text-xl"></i>ESTOQUE</button>
+                <button onclick="mudarAba('tab-logs')" class="btn-neo bg-gray-800 text-white text-[10px] flex-col p-2"><i class="fa-solid fa-database text-xl"></i>DADOS</button>
+            </nav>
+
+            <section id="tab-inv" class="tab-content">
+                <div class="card-neo p-6 border-orange-500">
+                    <h2 class="text-2xl font-black mb-4 uppercase italic">Cadastro e Estoque</h2>
+                    <div class="p-4 bg-orange-50 border-2 border-black rounded-2xl mb-6">
+                        <div class="grid grid-cols-1 md:grid-cols-3 gap-3">
+                            <div><label class="text-[10px] font-bold">TIPO:</label><select id="invPecaNome"></select></div>
+                            <div><label class="text-[10px] font-bold">Nº / TAMANHO:</label><input type="text" id="invPecaNum" placeholder="Opcional" class="uppercase bg-white"></div>
+                            <div><label class="text-[10px] font-bold">QUANTIDADE:</label><input type="number" id="invQtd" placeholder="Ex: 10" value="1" min="1" class="bg-white"></div>
+                        </div>
+                        <button onclick="addEstoque()" class="btn-neo bg-orange-500 text-white w-full py-3 mt-4 text-lg">ADICIONAR</button>
+                    </div>
+                    <div class="search-container">
+                        <i class="fa-solid fa-search search-icon"></i>
+                        <input type="text" id="buscaEstoqueInput" onkeyup="renderEstoque()" placeholder="Pesquisar peça..." class="search-input uppercase">
+                    </div>
+                    <div id="listaEstoqueReal" class="space-y-2"></div>
+                </div>
+            </section>
+            
+            <section id="tab-operacao" class="tab-content">
+                <div class="card-neo p-6">
+                    <h2 class="text-xl font-black mb-4">Rastreamento</h2>
+                    <div class="flex gap-2 mb-4"><input type="text" id="buscaOp" placeholder="Nome ou Nº..." onkeyup="if(event.key==='Enter') realizarBusca()"><button onclick="realizarBusca()" class="btn-neo bg-black text-white px-4">BUSCAR</button></div>
+                    <div id="resBusca"></div>
+                </div>
+            </section>
+
+            <section id="tab-troca" class="tab-content active-tab">
+                <div class="card-neo p-6">
+                    <h2 class="text-2xl font-black mb-6 uppercase italic underline">Atendimento / Troca</h2>
+                    
+                    <div class="mb-6 p-4 border-2 border-gray-200 bg-gray-50 rounded-xl">
+                        <label class="text-[10px] font-black text-gray-500 uppercase mb-1 block">🔍 Localizar Conjunto / Peça (Onde está e de quem é?):</label>
+                        <div class="flex gap-2">
+                            <input type="text" id="buscaOpTroca" placeholder="Nº ou Nome da peça..." class="uppercase flex-1 bg-white" onkeyup="if(event.key==='Enter') realizarBuscaTroca()">
+                            <button onclick="realizarBuscaTroca()" class="btn-neo bg-black text-white px-4 py-2">BUSCAR</button>
+                        </div>
+                        <div id="resBuscaTroca" class="mt-2 space-y-2"></div>
+                    </div>
+
+                    <hr class="my-6 border-black">
+
+                    <label class="text-[10px] font-black text-blue-600 uppercase mb-1 block">👤 Selecionar Funcionário para Troca:</label>
+                    <div class="relative w-full z-40 mb-4">
+                        <div class="search-container mt-0 mb-0">
+                            <i class="fa-solid fa-user search-icon text-blue-500"></i>
+                            <input type="text" id="inputBuscarFunc" onkeyup="filtrarListaFunc()" onfocus="filtrarListaFunc()" onblur="setTimeout(()=>document.getElementById('listaDropFunc').classList.add('hidden'), 200)" placeholder="DIGITE O NOME DO FUNCIONÁRIO..." class="search-input uppercase bg-blue-50 border-blue-300">
+                        </div>
+                        <div id="listaDropFunc" class="absolute w-full bg-white border-2 border-blue-500 rounded-xl mt-1 max-h-48 overflow-y-auto hidden shadow-2xl divide-y divide-gray-100">
+                        </div>
+                    </div>
+
+                    <select id="selColabTroca" class="hidden" onchange="carregarInterfaceTroca()"></select>
+                    
+                    <div id="areaTroca" class="hidden mt-8">
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
+                            <div class="p-4 border-dashed border-4 border-red-300 rounded-xl bg-red-50">
+                                <h3 class="font-black text-red-600 mb-2">DEVOLVENDO (Sujo):</h3>
+                                <div id="sujoLista"></div>
+                            </div>
+                            <div class="p-4 border-dashed border-4 border-blue-300 rounded-xl bg-blue-50">
+                                <h3 class="font-black text-blue-600 mb-2">RETIRANDO (Limpo):</h3>
+                                <div id="areaFavoritos" class="mb-2 hidden"><p class="text-[10px] font-black text-yellow-600 bg-yellow-100 px-2 py-1 rounded">⭐ FIXOS:</p><div id="listaFavoritos"></div></div>
+                                <p class="text-[10px] font-black text-gray-500 bg-gray-100 px-2 py-1 rounded">📦 ESTOQUE GERAL:</p>
+                                <div id="limpoLista" class="mb-4"></div>
+                                <hr class="my-2 border-blue-200">
+                                <p class="text-[10px] font-bold text-blue-800">RETIRADA EXTRA:</p>
+                                <div class="flex gap-2 mt-1"><select id="excPeca" class="text-[10px]"></select><input type="text" id="excNum" placeholder="Nº" class="w-20 text-[10px]"></div>
+                            </div>
+                        </div>
+                        <button onclick="processarTroca()" class="btn-neo w-full bg-black text-white p-4 mt-4 text-lg">REALIZAR TROCA</button>
+                    </div>
+                </div>
+            </section>
+
+            <section id="tab-equipe" class="tab-content">
+                <div class="card-neo p-6 border-green-500">
+                    <h2 class="text-xl font-black mb-4">Novo Funcionário</h2>
+                    <input type="text" id="cadNome" placeholder="NOME COMPLETO" class="uppercase mb-4">
+                    <div id="listaAtribuicao" class="space-y-2 mb-4"></div>
+                    <button onclick="addCampoPeca()" class="text-xs font-bold underline mb-4 text-green-700">+ Peça Inicial</button>
+                    <button onclick="salvarFuncionario()" class="btn-neo bg-green-600 text-white w-full p-4">CADASTRAR</button>
+                    <hr class="my-6 border-gray-300">
+                    <h3 class="font-bold text-lg mb-4">Gestão de Equipe:</h3>
+                    <div id="listaColaboradoresExcluir" class="grid grid-cols-1 md:grid-cols-2 gap-2"></div>
+                </div>
+            </section>
+
+            <section id="tab-lava" class="tab-content">
+                <div class="card-neo p-6 border-blue-500">
+                    <div class="flex justify-between mb-4"><h2 class="text-xl font-black">Lavanderia</h2><button onclick="receberLote('lv')" class="btn-neo bg-blue-600 text-white text-xs px-3">Receber Tudo</button></div>
+                    <div id="listaLava" class="grid grid-cols-1 md:grid-cols-2 gap-2"></div>
+                </div>
+            </section>
+
+            <section id="tab-manu" class="tab-content">
+                <div class="card-neo p-6 border-red-500">
+                    <div class="flex justify-between mb-4"><h2 class="text-xl font-black">Oficina</h2><button onclick="receberLote('mn')" class="btn-neo bg-red-600 text-white text-xs px-3">Enviar Tudo p/ Lava</button></div>
+                    <div id="listaManu" class="grid grid-cols-1 md:grid-cols-2 gap-2"></div>
+                </div>
+            </section>
+
+            <section id="tab-logs" class="tab-content">
+                <div class="card-neo p-6">
+                    <h2 class="text-xl font-black mb-4">Dados</h2>
+                    <div class="grid grid-cols-2 gap-2 mb-4">
+                        <button onclick="baixarBackup()" class="btn-neo bg-blue-600 text-white p-2">BACKUP / NUVEM</button>
+                        <button onclick="gerarExcel()" class="btn-neo bg-green-600 text-white p-2">EXCEL / NUVEM</button>
+                    </div>
+                    <p class="text-[10px] text-gray-500 font-bold mb-4 text-center">Os botões acima agora também salvam uma cópia na nuvem (Google Drive).</p>
+                    <input type="file" onchange="carregarBackup(this)" class="mb-4">
+                    <button onclick="resetarTudo()" class="btn-neo bg-red-600 text-white w-full p-2">RESETAR TUDO</button>
+                    <div id="logVisual" class="mt-4 h-32 overflow-y-auto bg-gray-100 p-2 text-[10px] font-mono border border-black"></div>
+                </div>
+            </section>
+        </main>
+        
+        <footer class="footer-autor">
+            <span>DESENVOLVIDO POR</span>
+            <a href="https://www.linkedin.com/in/jos%C3%A9-garibaldi-rodrigues-costa-42811266" 
+               target="_blank" 
+               style="color: #FFD700; text-decoration: none; font-weight: 900; display: flex; align-items: center; gap: 5px; text-transform: uppercase;">
+                JOSÉ GARIBALDI RODRIGUÊS COSTA <i class="fa-brands fa-linkedin text-lg"></i>
+            </a>
+        </footer>
+    </div>
+
+    <script>
+        function validarAcesso() {
+            const input = document.getElementById('inputSenhaAno').value;
+            const currentYear = new Date().getFullYear();
+            const diff = currentYear < 2026 ? 0 : (currentYear - 2026);
+            const senhaCorreta = "010" + ((diff % 5) + 2); 
+
+            if(input === senhaCorreta) {
+                document.getElementById('telaBloqueio').style.display = 'none';
+                document.getElementById('appContent').style.display = 'block';
+            } else {
+                document.getElementById('msgErroLogin').classList.remove('hidden');
+                setTimeout(()=>document.getElementById('msgErroLogin').classList.add('hidden'), 2000);
+            }
+        }
+
+        function verificarAdmin() { 
+            const pass = prompt("SENHA DE ADMINISTRADOR:");
+            if (pass === "Garibaldi") {
+                return true;
+            } else {
+                alert("SENHA INCORRETA! Ação cancelada.");
+                return false;
+            }
+        }
+
+        window.onerror = function(m) { if(!m.includes("Resize")) alert("Erro: " + m); return false; };
+
+        const PECAS_LISTA = ["CONJUNTO TÉRMICO AZUL","CONJUNTO TÉRMICO VERDE","CONJUNTO TÉRMICO BRANCO","JAQUETA TÉRMICA AZUL EXPEDIÇÃO","JAQUETA TÉRMICA CINZA","CALÇA TÉRMICA CINZA","JALECO AZUL","CALÇA AZUL","CAMISA AZUL","JALECO VERDE","CALÇA VERDE","CAMISA VERDE","JALECO BRANCO","CALÇA BRANCA","CAMISA BRANCA","CALÇA MARROM","CAMISA MARROM","BOTINA","AVENTAL"];
+        const REPAROS = ["Costura","Ribana","Velcro","Zíper","Botão"];
+        const CUSTOS = { "Costura": 10.00, "Ribana": 13.00, "Velcro": 13.00, "Zíper": 13.00, "Botão": 2.50 };
+        const DB = { get: k => JSON.parse(localStorage.getItem(k)||"[]"), set: (k,v) => localStorage.setItem(k,JSON.stringify(v)) };
+
+        document.addEventListener('DOMContentLoaded', () => {
+            ['_eq','_est','_lv','_mn','_logs'].forEach(k => { if(!localStorage.getItem(k)) DB.set(k, []); });
+            popularSelects(); addCampoPeca(); renderEstoque(); atualizarIndicadores(); renderLogs();
+        });
+
+        function mudarAba(id) {
+            document.querySelectorAll('.tab-content').forEach(el=>el.classList.remove('active-tab'));
+            document.getElementById(id).classList.add('active-tab');
+            if(id==='tab-inv') renderEstoque();
+            if(id==='tab-troca') {
+                document.getElementById('inputBuscarFunc').value = '';
+                document.getElementById('buscaOpTroca').value = '';
+                document.getElementById('resBuscaTroca').innerHTML = '';
+                document.getElementById('areaTroca').classList.add('hidden');
+                document.getElementById('excPeca').value = ''; 
+                document.getElementById('excNum').value = '';
+            }
+            if(id==='tab-lava') renderLava();
+            if(id==='tab-manu') renderManu();
+            if(id==='tab-equipe') renderEquipe();
+        }
+
+        function buscarConjuntoGeral(inputId, resId) {
+            const termo = document.getElementById(inputId).value.toUpperCase().trim();
+            const resDiv = document.getElementById(resId);
+            if (!termo) { resDiv.innerHTML = "<p class='text-red-500 text-xs font-bold'>Digite o número ou nome para buscar.</p>"; return; }
+            
+            let resultados = "";
+            const equipe = DB.get('_eq');
+            
+            const est = DB.get('_est');
+            const estMatch = est.filter(x => x.p.includes(termo) || (x.n && x.n.includes(termo)));
+            if (estMatch.length > 0) {
+                let htmlEst = estMatch.map(x => {
+                    const label = x.n ? `${x.p} Nº ${x.n}` : x.p;
+                    let estrela = "";
+                    if(x.p.includes("CONJUNTO")) {
+                        const dono = equipe.find(f => f.fixo && f.fixo.includes(label));
+                        if(dono) estrela = `<span class="text-yellow-500 ml-1">⭐ <small class="text-gray-500 italic">${dono.n}</small></span>`;
+                    }
+                    return `<div>${x.p} ${x.n ? 'Nº '+x.n : ''} ${estrela} - <b>${x.q} unidade(s)</b></div>`;
+                }).join('');
+                
+                resultados += `<div class="mb-2 p-2 border-l-4 border-orange-500 bg-orange-50 text-xs rounded shadow-sm">
+                    <p class="font-black text-orange-600 mb-1">📦 NO ESTOQUE:</p>
+                    ${htmlEst}
+                </div>`;
+            }
+
+            const eq = DB.get('_eq');
+            let eqMatch = [];
+            eq.forEach(f => {
+                const pecas = f.posse ? f.posse.filter(p => p.includes(termo)) : [];
+                if (pecas.length > 0) {
+                    eqMatch.push(`<div>👤 <b>${f.n}</b> está usando: ${pecas.join(', ')}</div>`);
+                }
+            });
+            if (eqMatch.length > 0) {
+                resultados += `<div class="mb-2 p-2 border-l-4 border-green-500 bg-green-50 text-xs rounded shadow-sm">
+                    <p class="font-black text-green-600 mb-1">🟢 EM USO (EQUIPE):</p>
+                    ${eqMatch.join('')}
+                </div>`;
+            }
+
+            const lv = DB.get('_lv');
+            const lvMatch = lv.filter(x => x.peca.includes(termo));
+            if (lvMatch.length > 0) {
+                resultados += `<div class="mb-2 p-2 border-l-4 border-blue-500 bg-blue-50 text-xs rounded shadow-sm">
+                    <p class="font-black text-blue-600 mb-1">💧 NA LAVANDERIA:</p>
+                    ${lvMatch.map(x => `<div>${x.peca} (Enviado por: <b>${x.colab}</b>)</div>`).join('')}
+                </div>`;
+            }
+
+            const mn = DB.get('_mn');
+            const mnMatch = mn.filter(x => x.peca.includes(termo));
+            if (mnMatch.length > 0) {
+                resultados += `<div class="mb-2 p-2 border-l-4 border-red-500 bg-red-50 text-xs rounded shadow-sm">
+                    <p class="font-black text-red-600 mb-1">🛠️ NA OFICINA:</p>
+                    ${mnMatch.map(x => `<div>${x.peca} (Enviado por: <b>${x.colab}</b>) - Obs: ${x.obs}</div>`).join('')}
+                </div>`;
+            }
+
+            if (resultados === "") {
+                resDiv.innerHTML = `<div class="p-3 bg-gray-100 border border-gray-300 rounded text-center font-bold text-gray-500 text-xs">Nenhum resultado encontrado for "${termo}".</div>`;
+            } else {
+                resDiv.innerHTML = resultados;
+            }
+        }
+
+        function realizarBusca() { buscarConjuntoGeral('buscaOp', 'resBusca'); }
+        function realizarBuscaTroca() { buscarConjuntoGeral('buscaOpTroca', 'resBuscaTroca'); }
+
+        function removerAcentos(texto) {
+            return texto.normalize('NFD').replace(/[\u0300-\u036f]/g, "");
+        }
+
+        function filtrarListaFunc() {
+            const termoOriginal = document.getElementById('inputBuscarFunc').value;
+            const termo = removerAcentos(termoOriginal.toUpperCase().trim());
+            const box = document.getElementById('listaDropFunc');
+            
+            if (!termo) {
+                box.classList.add('hidden');
+                return;
+            }
+            
+            box.classList.remove('hidden');
+            const eq = DB.get('_eq');
+            
+            const filtrados = eq.filter(e => {
+                const nomeSemAcento = removerAcentos(e.n.toUpperCase());
+                return nomeSemAcento.includes(termo);
+            });
+            
+            if (filtrados.length === 0) {
+                box.innerHTML = '<div class="p-4 text-center text-xs text-gray-400 font-bold">Nenhum funcionário encontrado.</div>';
+                return;
+            }
+            
+            box.innerHTML = filtrados.map(e => `
+                <div onmousedown="selecionarParaTroca('${e.n}')" class="p-3 hover:bg-blue-100 cursor-pointer flex justify-between items-center text-xs font-bold transition-colors">
+                    <span>${e.n}</span>
+                    <span class="bg-blue-600 text-white px-2 py-1 rounded text-[9px]">${e.posse ? e.posse.length : 0} PEÇAS</span>
+                </div>
+            `).join('');
+        }
+
+        function selecionarParaTroca(nome) {
+            document.getElementById('inputBuscarFunc').value = nome;
+            document.getElementById('listaDropFunc').classList.add('hidden');
+            
+            const sel = document.getElementById('selColabTroca');
+            sel.value = nome;
+            carregarInterfaceTroca();
+        }
+
+        function verificarDisponibilidadeAvancada(tipo, num, ignorarIdxUser = -1) {
+            const label = num ? `${tipo} Nº ${num}` : tipo;
+            const est = DB.get('_est');
+            const inLava = DB.get('_lv').find(x => x.peca === label);
+            if(inLava) return { ok: false, msg: `❌ ${label} está na LAVANDERIA (Enviado em ${new Date(inLava.data_envio).toLocaleDateString()})` };
+            const inManu = DB.get('_mn').find(x => x.peca === label);
+            if(inManu) return { ok: false, msg: `❌ ${label} está na OFICINA (Defeito: ${inManu.obs})` };
+            if(num) {
+                const eq = DB.get('_eq');
+                for(let i=0; i < eq.length; i++) {
+                    if(i === ignorarIdxUser) continue;
+                    if(eq[i].posse && eq[i].posse.includes(label)) return { ok: false, msg: `❌ ${label} já está com o funcionário ${eq[i].n}` };
+                }
+            }
+            let idx = -1;
+            if(num) idx = est.findIndex(x => x.p === tipo && x.n === num); else idx = est.findIndex(x => x.p === tipo && !x.n);
+            if(idx > -1 && est[idx].q > 0) return { ok: true, estoqueIdx: idx };
+            return { ok: false, msg: `❌ ${label} não disponível no estoque (QTD: 0)` };
+        }
+
+        let editorIdx = -1;
+        function abrirEditor(i) {
+            editorIdx = i;
+            const f = DB.get('_eq')[i];
+            document.getElementById('editorTitulo').innerText = `EDITANDO: ${f.n}`;
+            document.getElementById('modalEditor').style.display = 'flex';
+            document.getElementById('editPeca').innerHTML = PECAS_LISTA.map(p=>`<option value="${p}">${p}</option>`).join('');
+            renderEditorItens();
+        }
+        function fecharEditor() { document.getElementById('modalEditor').style.display = 'none'; renderEquipe(); }
+
+        function adicionarItemFuncionario() {
+            const tipo = document.getElementById('editPeca').value, num = document.getElementById('editNum').value.trim();
+            const check = verificarDisponibilidadeAvancada(tipo, num, editorIdx);
+            if(!check.ok) { alert(check.msg); return; }
+            let est = DB.get('_est'), idx = check.estoqueIdx, label = num ? `${tipo} Nº ${num}` : tipo;
+            est[idx].q--; if(est[idx].q <= 0) est.splice(idx, 1);
+            let eq = DB.get('_eq'); eq[editorIdx].posse.push(label);
+            DB.set('_est', est); DB.set('_eq', eq);
+            addLog("EDITOR", `Adicionado ${label} para ${eq[editorIdx].n}`);
+            renderEditorItens(); renderEstoque(); atualizarIndicadores();
+        }
+
+        function salvarFuncionario() {
+            const nome = document.getElementById('cadNome').value.toUpperCase();
+            if(!nome) return alert("Nome?");
+            let est = DB.get('_est'), posse = [], err = false;
+            const selects = document.querySelectorAll('.peca-atrib'), inputs = document.querySelectorAll('.num-atrib');
+            for(let i=0; i<selects.length; i++){
+                const tipo = selects[i].value, num = inputs[i].value.trim();
+                const check = verificarDisponibilidadeAvancada(tipo, num);
+                if(!check.ok) { alert(check.msg); err = true; break; }
+            }
+            if(err) return;
+            for(let i=0; i<selects.length; i++){
+                const tipo = selects[i].value, num = inputs[i].value.trim(), label = num ? `${tipo} Nº ${num}` : tipo;
+                let idx = -1;
+                if(num) idx = est.findIndex(x => x.p === tipo && x.n === num); else idx = est.findIndex(x => x.p === tipo && !x.n);
+                if(idx > -1) { est[idx].q--; posse.push(label); if(est[idx].q <= 0) est.splice(idx, 1); }
+            }
+            let eq = DB.get('_eq'); eq.push({n: nome, posse: posse, fixo: [...posse]});
+            DB.set('_eq', eq); DB.set('_est', est); alert("Cadastrado!"); location.reload();
+        }
+
+        function renderEditorItens() {
+            const f = DB.get('_eq')[editorIdx];
+            const area = document.getElementById('listaItensEditor');
+            area.innerHTML = "";
+            if(!f.posse || f.posse.length === 0) { area.innerHTML = "<div class='text-center text-gray-400'>Nenhum item.</div>"; return; }
+            f.posse.forEach((item, idx) => {
+                const isFav = f.fixo && f.fixo.includes(item);
+                const starColor = isFav ? "text-yellow-500" : "text-gray-300";
+                area.innerHTML += `<div class="flex justify-between items-center p-3 border rounded bg-white shadow-sm"><span class="font-bold text-sm">${item}</span><div class="flex gap-3"><button onclick="toggleFavorito('${item}')" class="${starColor} text-xl"><i class="fa-solid fa-star"></i></button><button onclick="removerItemFuncionario(${idx})" class="text-red-500 font-bold px-2 border border-red-200 rounded">DEVOLVER</button></div></div>`;
+            });
+        }
+
+        function toggleFavorito(item) {
+            let eq = DB.get('_eq'), f = eq[editorIdx];
+            if(!f.fixo) f.fixo = [];
+            if(f.fixo.includes(item)) f.fixo = f.fixo.filter(x => x !== item); else f.fixo.push(item);
+            DB.set('_eq', eq); renderEditorItens();
+        }
+
+        function removerItemFuncionario(idx) {
+            if(!confirm("Devolver ao estoque?")) return;
+            let eq = DB.get('_eq'), est = DB.get('_est'), f = eq[editorIdx], item = f.posse[idx];
+            f.posse.splice(idx, 1);
+            if(f.fixo) f.fixo = f.fixo.filter(x => x !== item);
+            let isConj = item.includes(" Nº ");
+            if(isConj) { let pts = item.split(" Nº "); let ex = est.findIndex(x=>x.p===pts[0] && x.n===pts[1]); if(ex>-1) est[ex].q++; else est.push({p:pts[0], n:pts[1], q:1}); }
+            else { let ex = est.findIndex(x=>x.p===item && !x.n); if(ex>-1) est[ex].q++; else est.push({p:item, n:"", q:1}); }
+            DB.set('_eq', eq); DB.set('_est', est); addLog("EDITOR", `Devolvido ${item} de ${f.n}`); renderEditorItens(); renderEstoque(); atualizarIndicadores();
+        }
+
+        function addEstoque() {
+            const p = document.getElementById('invPecaNome').value, n = document.getElementById('invPecaNum').value.toUpperCase().trim();
+            let q = parseInt(document.getElementById('invQtd').value); if(isNaN(q)||q<1) q=1;
+            let est = DB.get('_est'), idx = -1;
+            if(n) idx = est.findIndex(x=>x.p===p && x.n===n); else idx = est.findIndex(x=>x.p===p && !x.n);
+            if(idx>-1) { est[idx].q=(parseInt(est[idx].q)||0)+q; addLog("ESTOQUE", `Somado +${q} em ${p}`); }
+            else { est.push({p:p, n:n, q:q}); addLog("ESTOQUE", `Novo ${p} (${q})`); }
+            DB.set('_est', est); document.getElementById('invPecaNum').value=""; renderEstoque(); atualizarIndicadores();
+        }
+
+        function renderEstoque() {
+            const list = DB.get('_est'), area = document.getElementById('listaEstoqueReal'), filter = document.getElementById('buscaEstoqueInput').value.toUpperCase();
+            const equipe = DB.get('_eq');
+            area.innerHTML = "";
+            const filtered = list.filter(i => (i.n ? `${i.p} ${i.n}` : i.p).toUpperCase().includes(filter));
+            const groups = {};
+            filtered.forEach((item, i) => { item.oid = i; if(!groups[item.p]) groups[item.p]=[]; groups[item.p].push(item); });
+            const keys = Object.keys(groups).sort();
+            if(keys.length===0) { area.innerHTML="<div class='text-center text-gray-400 p-4'>Vazio</div>"; return; }
+            keys.forEach(cat => {
+                const items = groups[cat];
+                const total = items.reduce((a,b)=>a+(parseInt(b.q)||0),0);
+                items.sort((a,b)=>(a.n&&b.n)?a.n.localeCompare(b.n, undefined, {numeric:true}):0);
+                let color = "bg-e2e8f0 text-slate-700";
+                if(cat.includes("AZUL")) color="bg-dbeafe text-blue-800 border-b-2 border-blue-500";
+                if(cat.includes("VERDE")) color="bg-dcfce7 text-green-800 border-b-2 border-green-500";
+                let html = `<div class="grupo-estoque mb-4 border rounded overflow-hidden shadow-sm"><div class="flex justify-between p-2 font-bold text-xs uppercase ${color}"><span>${cat}</span><span class="bg-white/50 px-2 rounded">Total: ${total}</span></div><div class="p-2 bg-white grid grid-cols-2 md:grid-cols-3 gap-2">`;
+                items.forEach(it => {
+                    const labelCompleta = it.n ? `${it.p} Nº ${it.n}` : it.p;
+                    let estrelaDono = "";
+                    
+                    if(it.p.includes("CONJUNTO")) {
+                        const dono = equipe.find(f => f.fixo && f.fixo.includes(labelCompleta));
+                        if(dono) estrelaDono = `<span class="text-yellow-500 ml-1" title="Favorito de: ${dono.n}">⭐ <span class="text-[8px] text-gray-400 italic">${dono.n}</span></span>`;
+                    }
+                    
+                    const lbl = it.n ? `Nº ${it.n}` : 'LOTE', bd = it.n?'border-blue-300':'border-green-300';
+                    html += `<div class="flex flex-col p-2 border-l-4 ${bd} border bg-gray-50 rounded text-[10px]"><div class="flex justify-between items-center mb-1"><span class="font-bold">${lbl} ${estrelaDono}</span><div class="flex items-center gap-2"><span class="bg-white px-1 border rounded font-black">${it.n?'UNI':it.q}</span><button onclick="rmEst(${it.oid})" class="text-red-500 font-bold">X</button></div></div></div>`;
+                });
+                area.innerHTML += html + "</div></div>";
+            });
+        }
+
+        function rmEst(i) {
+            if(!verificarAdmin()) return;
+            if(!confirm("Remover permanentemente do estoque?")) return;
+            const listaOriginal = DB.get('_est');
+            const itemRenderizado = listaOriginal[i]; 
+            if(itemRenderizado) {
+               listaOriginal.splice(i, 1);
+               DB.set('_est', listaOriginal);
+               renderEstoque(); atualizarIndicadores();
+            } else { alert("Erro de índice. Recarregue."); location.reload(); }
+        }
+
+        function renderEquipe() { document.getElementById('listaColaboradoresExcluir').innerHTML = DB.get('_eq').map((f,i) => `<div class="flex justify-between items-center p-3 border-2 border-black rounded-xl bg-gray-50 mb-2"><span class="font-bold text-[10px] w-1/2 truncate">${f.n}</span><div class="flex gap-2"><button onclick="abrirEditor(${i})" class="bg-blue-600 text-white px-3 py-1 rounded text-[9px] font-black">EDITAR</button><button onclick="excluirFuncionario(${i})" class="bg-red-500 text-white px-3 py-1 rounded text-[9px] font-black">X</button></div></div>`).join(''); }
+        
+        function excluirFuncionario(i) { 
+            if(!verificarAdmin()) return;
+            let eq = DB.get('_eq'), f = eq[i];
+            if(f.posse && f.posse.length > 0) {
+                let devolver = confirm(`O funcionário ${f.n} tem ${f.posse.length} itens!\n\nOK = Devolver itens ao ESTOQUE e excluir.\nCANCELAR = Apenas excluir (Itens somem).`);
+                if(devolver) {
+                    let est = DB.get('_est');
+                    f.posse.forEach(item => {
+                        let isConj = item.includes(" Nº ");
+                        if(isConj) { let pts = item.split(" Nº "); let ex = est.findIndex(x=>x.p===pts[0] && x.n===pts[1]); if(ex > -1) est[ex].q++; else est.push({p:pts[0], n:pts[1], q:1}); } 
+                        else { let ex = est.findIndex(x=>x.p===item && !x.n); if(ex > -1) est[ex].q++; else est.push({p:item, n:"", q:1}); }
+                    });
+                    DB.set('_est', est); addLog("EXCLUSÃO", `Itens de ${f.n} devolvidos ao estoque.`);
+                }
+            } else { if(!confirm(`Excluir ${f.n}?`)) return; }
+            eq.splice(i,1); DB.set('_eq',eq); popularSelects(); renderEquipe(); atualizarIndicadores(); 
+        }
+        
+        function popularSelects() { 
+            const h=PECAS_LISTA.map(p=>`<option value="${p}">${p}</option>`).join(''); 
+            document.getElementById('invPecaNome').innerHTML=h; 
+            document.getElementById('excPeca').innerHTML='<option value="">(NENHUM EXTRA)</option>'+h; 
+            document.getElementById('selColabTroca').innerHTML='<option value="">Selecione...</option>'+DB.get('_eq').map(e=>`<option value="${e.n}">${e.n}</option>`).join(''); 
+            document.getElementById('editPeca').innerHTML=h; 
+        }
+        
+        function addCampoPeca() { const d=document.createElement('div'); d.className="flex gap-2"; d.innerHTML=`<select class="peca-atrib flex-1 p-2 border rounded text-xs">${PECAS_LISTA.map(p=>`<option value="${p}">${p}</option>`).join('')}</select><input type="text" class="num-atrib w-20 p-2 border rounded text-xs" placeholder="Nº">`; document.getElementById('listaAtribuicao').appendChild(d); }
+        function atualizarIndicadores() { document.getElementById('dashE').innerText = DB.get('_est').reduce((a,b)=>a+(parseInt(b.q)||0),0); document.getElementById('dashU').innerText = DB.get('_eq').reduce((a,b)=>a+(b.posse?b.posse.length:0),0); document.getElementById('dashL').innerText = DB.get('_lv').length; document.getElementById('dashM').innerText = DB.get('_mn').length; }
+        function addLog(a,d){ let l=DB.get('_logs'); l.unshift({data:new Date().toLocaleString(), acao:a, detalhe:d}); if(l.length>500)l.pop(); DB.set('_logs',l); renderLogs(); }
+        function renderLogs(){ document.getElementById('logVisual').innerHTML=DB.get('_logs').map(x=>`<div><b>[${x.data}] ${x.acao}:</b> ${x.detalhe}</div>`).join(''); }
+        
+        function toggleReparo(i, valor) {
+            const area = document.getElementById(`reparo-area-${i}`);
+            if (valor === 'MANU') { area.classList.remove('hidden'); area.classList.add('flex'); } 
+            else { area.classList.add('hidden'); area.classList.remove('flex'); }
+        }
+
+        function mudarQtdReparo(i, idSafe, delta) {
+            const span = document.getElementById(`qtd-rep-${i}-${idSafe}`);
+            let val = parseInt(span.getAttribute('data-qtd')) + delta;
+            if(val < 0) val = 0; 
+            
+            span.setAttribute('data-qtd', val);
+            span.innerText = val;
+            
+            const box = document.getElementById(`rep-${i}-${idSafe}`);
+            if(val > 0) box.classList.add('selected');
+            else box.classList.remove('selected');
+        }
+
+        function carregarInterfaceTroca() {
+            const n=document.getElementById('selColabTroca').value; const area=document.getElementById('areaTroca');
+            if(!n) { area.classList.add('hidden'); return; } area.classList.remove('hidden');
+            
+            document.getElementById('excPeca').value = ''; 
+            document.getElementById('excNum').value = '';
+            
+            const f=DB.get('_eq').find(x=>x.n===n);
+            document.getElementById('sujoLista').innerHTML = f.posse.map((p,i)=>`
+                <div class="p-2 border rounded bg-white mb-2">
+                    <div class="flex justify-between items-center mb-1">
+                        <div class="flex items-center gap-2">
+                            <input type="checkbox" class="cb-sujo" value="${i}" data-label="${p}">
+                            <span class="text-xs font-bold">${p}</span>
+                        </div>
+                        <select id="dest-${i}" class="text-[10px] border p-1 rounded bg-gray-50" onchange="toggleReparo(${i}, this.value)">
+                            <option value="LAVA">LAVANDERIA</option>
+                            <option value="MANU">OFICINA</option>
+                        </select>
+                    </div>
+                    <div id="reparo-area-${i}" class="hidden flex-wrap gap-1 mt-2 p-1 bg-red-50 rounded border border-red-100">
+                        ${REPAROS.map(r => {
+                            const idSafe = r.replace(/[^a-zA-Z0-9]/g, ''); 
+                            return `
+                            <div class="opt-reparo" id="rep-${i}-${idSafe}" data-tipo="${r}">
+                                <span>${r} <span class="text-[8px] bg-black text-yellow-400 px-1 rounded">R$${CUSTOS[r].toFixed(2)}</span></span>
+                                <div class="flex items-center bg-gray-200 rounded text-[12px] ml-1 border border-gray-400">
+                                    <button type="button" onclick="mudarQtdReparo(${i}, '${idSafe}', -1)" class="px-2 text-red-600 hover:bg-gray-300 font-black rounded-l">-</button>
+                                    <span id="qtd-rep-${i}-${idSafe}" class="px-2 font-black bg-white min-w-[20px] text-center border-l border-r border-gray-400" data-qtd="0">0</span>
+                                    <button type="button" onclick="mudarQtdReparo(${i}, '${idSafe}', 1)" class="px-2 text-green-600 hover:bg-gray-300 font-black rounded-r">+</button>
+                                </div>
+                            </div>`;
+                        }).join('')}
+                    </div>
+                </div>`).join('');
+            
+            let hFav="", hGer="", fav=f.fixo||[];
+            DB.get('_est').slice(0,100).forEach(i=>{
+                let l=i.n?`${i.p} Nº ${i.n}`:i.p;
+                if(f.posse.includes(l) && i.q<=0) return;
+                
+                // --- FILTRO: ESCONDE CONJUNTOS DA LISTA GERAL DE ESTOQUE ---
+                if (!fav.includes(l) && i.p.toUpperCase().includes("CONJUNTO")) return;
+
+                let h=`<label class="block p-2 border-l-4 ${i.n?'border-blue-500':'border-green-500'} bg-white mb-1 shadow-sm"><input type="checkbox" class="cb-limpo mr-2" data-label="${l}"> ${fav.includes(l)?'⭐':''} <b class="text-[10px]">${l}</b></label>`;
+                if(fav.includes(l)) hFav+=h; else hGer+=h;
+            });
+            if(hFav) { document.getElementById('areaFavoritos').classList.remove('hidden'); document.getElementById('listaFavoritos').innerHTML=hFav; } else document.getElementById('areaFavoritos').classList.add('hidden');
+            document.getElementById('limpoLista').innerHTML=hGer;
+        }
+
+        function renderManu(){ 
+            document.getElementById('listaManu').innerHTML = DB.get('_mn').map((i,idx)=>`
+                <div class="p-2 border rounded bg-red-50 text-xs mb-1">
+                    <div class="flex justify-between items-center mb-1">
+                        <div>
+                            <span class="font-bold block">${i.peca}</span>
+                            <div class="font-bold text-blue-800 text-[10px] mb-1">👤 ${i.colab}</div>
+                        </div>
+                        <span class="bg-yellow-200 text-red-800 px-2 rounded font-bold text-[10px]">R$ ${(i.custo||0).toFixed(2)}</span>
+                    </div>
+                    <div class="italic text-gray-500 mb-2">${i.obs}</div>
+                    <button onclick="receberItem('mn',${idx})" class="w-full bg-red-200 rounded font-bold py-1 hover:bg-red-300">✅ Enviar p/ Lava</button>
+                </div>
+            `).join(''); 
+        }
+
+        function renderLava(){ 
+            document.getElementById('listaLava').innerHTML = DB.get('_lv').map((i,idx)=>`
+                <div class="p-2 border rounded bg-blue-50 text-xs mb-1 flex justify-between items-center">
+                    <div>
+                        <span class="block font-bold">${i.peca}</span>
+                        <span class="text-[9px] text-gray-600">👤 ${i.colab}</span>
+                        ${i.custo > 0 ? '<span class="ml-1 text-[9px] bg-red-100 text-red-600 px-1 rounded font-bold">[OFICINA]</span>' : ''}
+                    </div>
+                    <button onclick="receberItem('lv',${idx})" class="text-blue-700 font-bold border border-blue-200 px-2 rounded hover:bg-blue-100">Receber</button>
+                </div>
+            `).join(''); 
+        }
+        
+        function receberItem(origem, idx) {
+            let lista = DB.get('_'+origem), item = lista[idx];
+            if(!item) return;
+
+            if(origem === 'mn') {
+                let lv = DB.get('_lv'); 
+                lv.push({peca:item.peca, colab:item.colab, data_envio:new Date().toISOString(), custo:item.custo}); 
+                DB.set('_lv', lv);
+                addLog("MANU->LAVA", `${item.peca} enviado da oficina para lavanderia`);
+            } else {
+                let est = DB.get('_est');
+                let isConjunto = item.peca.includes(" Nº ");
+                if(isConjunto) {
+                    let pts = item.peca.split(" Nº ");
+                    let ex = est.findIndex(x=>x.p===pts[0] && x.n===pts[1]);
+                    if(ex > -1) est[ex].q++; else est.push({p:pts[0], n:pts[1], q:1});
+                } else {
+                    let ex = est.findIndex(x=>x.p===item.peca && !x.n);
+                    if(ex > -1) est[ex].q++; else est.push({p:item.peca, n:"", q:1});
+                }
+                DB.set('_est', est);
+                addLog("ESTOQUE", `${item.peca} voltou limpo da lavanderia`);
+            }
+            
+            lista.splice(idx, 1); 
+            DB.set('_'+origem, lista);
+            renderLava(); renderManu(); renderEstoque(); atualizarIndicadores();
+        }
+
+        function receberLote(tipo) {
+            let listaOrigem = DB.get('_' + tipo);
+            if (listaOrigem.length === 0) return alert("Lista vazia!");
+            if (!confirm("Confirmar movimentação de todos os itens?")) return;
+
+            if (tipo === 'mn') {
+                let lavanderia = DB.get('_lv');
+                listaOrigem.forEach(item => {
+                    lavanderia.push({
+                        peca: item.peca,
+                        colab: item.colab,
+                        data_envio: new Date().toISOString(),
+                        custo: item.custo
+                    });
+                });
+                DB.set('_lv', lavanderia);
+                addLog("LOTE", "Oficina -> Lavanderia (Todos)");
+            } else if (tipo === 'lv') {
+                let est = DB.get('_est');
+                listaOrigem.forEach(item => {
+                    let isConj = item.peca.includes(" Nº ");
+                    if(isConj) {
+                        let pts = item.peca.split(" Nº ");
+                        let ex = est.findIndex(x=>x.p===pts[0] && x.n===pts[1]);
+                        if(ex > -1) est[ex].q++; else est.push({p:pts[0], n:pts[1], q:1});
+                    } else {
+                        let ex = est.findIndex(x=>x.p===item.peca && !x.n);
+                        if(ex > -1) est[ex].q++; else est.push({p:item.peca, n:"", q:1});
+                    }
+                });
+                DB.set('_est', est);
+                addLog("LOTE", "Lavanderia -> Estoque (Todos)");
+            }
+
+            DB.set('_' + tipo, []);
+            renderLava(); renderManu(); renderEstoque(); atualizarIndicadores();
+        }
+
+        function processarTroca() {
+            const n=document.getElementById('selColabTroca').value; if(!n) return;
+            
+            const exP = document.getElementById('excPeca').value;
+            const exN = document.getElementById('excNum').value.trim();
+            if (exP) {
+                const check = verificarDisponibilidadeAvancada(exP, exN);
+                if (!check.ok) {
+                    alert("⚠️ RETIRADA EXTRA BLOQUEADA:\n\n" + check.msg + "\n\nA troca NÃO foi registrada. Remova a peça extra ou corrija o número.");
+                    return;
+                }
+            }
+
+            let eq=DB.get('_eq'), est=DB.get('_est'), lv=DB.get('_lv'), mn=DB.get('_mn'), idx=eq.findIndex(x=>x.n===n), f=eq[idx], rem=[];
+            
+            document.querySelectorAll('.cb-sujo:checked').forEach(cb=>{
+                const i=cb.value, l=cb.dataset.label, d=document.getElementById(`dest-${i}`).value;
+                
+                if(d==='MANU') { 
+                    const sels = Array.from(document.querySelectorAll(`#reparo-area-${i} .opt-reparo.selected`));
+                    let cust = 0;
+                    let obsArr = [];
+                    sels.forEach(el => {
+                        const tipo = el.dataset.tipo;
+                        const idSafe = tipo.replace(/[^a-zA-Z0-9]/g, '');
+                        const qtdEl = document.getElementById(`qtd-rep-${i}-${idSafe}`);
+                        const qtd = qtdEl ? parseInt(qtdEl.getAttribute('data-qtd')) : 1;
+                        cust += (CUSTOS[tipo] || 0) * qtd;
+                        obsArr.push(`${qtd}x ${tipo}`);
+                    });
+                    let obs = obsArr.join(', ') || "Geral";
+                    mn.push({peca:l, colab:n, custo:cust, obs:obs, data_envio:new Date().toISOString()}); 
+                    addLog("OFICINA", `${n}->${l} (R$${cust})`); 
+                } else { 
+                    lv.push({peca:l, colab:n, custo:0, data_envio:new Date().toISOString()}); 
+                    addLog("LAVA", `${n}->${l}`); 
+                }
+                rem.push(l);
+            });
+            
+            f.posse = f.posse.filter(p=>!rem.includes(p));
+
+            document.querySelectorAll('.cb-limpo:checked').forEach(cb=>{
+                const l=cb.dataset.label;
+                let ex = l.includes(" Nº ") ? est.findIndex(x=>x.p===l.split(" Nº ")[0] && x.n===l.split(" Nº ")[1]) : est.findIndex(x=>x.p===l && !x.n);
+                if(ex>-1 && est[ex].q>0) { est[ex].q--; if(est[ex].q<=0) est.splice(ex,1); f.posse.push(l); addLog("SAIDA", `${n}<-${l}`); }
+            });
+            
+            if(exP) {
+                const label = exN ? `${exP} Nº ${exN}` : exP;
+                let estIdx = exN ? est.findIndex(x=>x.p===exP && x.n===exN) : est.findIndex(x=>x.p===exP && !x.n);
+                if(estIdx > -1 && est[estIdx].q > 0) {
+                    est[estIdx].q--; if(est[estIdx].q <= 0) est.splice(estIdx,1); f.posse.push(label); addLog("SAIDA", `${n}<-${label} (AV)`);
+                }
+            }
+
+            eq[idx]=f; 
+            DB.set('_eq',eq); DB.set('_est',est); DB.set('_lv',lv); DB.set('_mn',mn);
+            alert("Troca realizada!"); carregarInterfaceTroca(); atualizarIndicadores();
+            
+            document.getElementById('inputBuscarFunc').value = '';
+            document.getElementById('buscaOpTroca').value = '';
+            document.getElementById('resBuscaTroca').innerHTML = '';
+        }
+
+        // ==============================================================
+        // NOVA FUNÇÃO: Envia a cópia silenciosamente para o Google Drive
+        // ==============================================================
+        function enviarParaDrive(base64Data, filename, mime) {
+            // URL MÁGICA: A ponte oficial do seu Apps Script
+            const scriptURL = "https://script.google.com/macros/s/AKfycbz-5pSGiJRHT3SwhNrhlDtxAAbhL_ZnFMgDksltwNwTxuuG3Mk_bEHzJzUFVxUi5zFa/exec";
+            
+            fetch(scriptURL, {
+                method: "POST",
+                body: JSON.stringify({ data: base64Data, filename: filename, mimeType: mime })
+            })
+            .then(response => {
+                console.log("Cópia salva no seu Google Drive com sucesso!");
+                addLog("NUVEM", `Cópia do arquivo ${filename} salva no Drive.`);
+            })
+            .catch(e => console.error("Erro ao enviar pro Drive:", e));
+        }
+
+        // ==============================================================
+        // FUNÇÃO ATUALIZADA: Gerar Excel e enviar cópia
+        // ==============================================================
+        function gerarExcel() { 
+            try { 
+                const wb = XLSX.utils.book_new(); 
+                const equipe = DB.get('_eq');
+                const appendStyledSheet = (wb, data, name, tabColor) => {
+                    if (!data.length) { XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet([{Info: "Sem dados"}]), name); return; }
+                    const ws = XLSX.utils.json_to_sheet(data);
+                    const colWidths = Object.keys(data[0]).map(key => {
+                        let max = key.length; data.forEach(row => { const val = (row[key] || "").toString(); if (val.length > max) max = val.length; }); return { wch: max + 5 };
+                    });
+                    ws['!cols'] = colWidths;
+                    const range = XLSX.utils.decode_range(ws['!ref']);
+                    for (let C = range.s.c; C <= range.e.c; ++C) {
+                        const address = XLSX.utils.encode_cell({ r: 0, c: C });
+                        if (!ws[address]) continue;
+                        ws[address].s = { font: { bold: true, color: { rgb: "FFFFFF" } }, fill: { fgColor: { rgb: "1E293B" } }, alignment: { horizontal: "center" } };
+                    }
+                    if(tabColor) ws['!properties'] = { tabColor: { rgb: tabColor } };
+                    XLSX.utils.book_append_sheet(wb, ws, name);
+                };
+
+                const dadosEstoque = DB.get('_est').map(x => {
+                    const label = x.n ? `${x.p} Nº ${x.n}` : x.p;
+                    let donoNome = "-";
+                    if(x.p.includes("CONJUNTO")) {
+                        const dono = equipe.find(f => f.fixo && f.fixo.includes(label));
+                        if(dono) donoNome = dono.n;
+                    }
+                    return { ITEM: x.p, NUM: x.n || '-', QTD: x.q, "FAVORITO DE": donoNome };
+                });
+                appendStyledSheet(wb, dadosEstoque, "Estoque", "16A34A");
+                
+                let u=[]; DB.get('_eq').forEach(f=>{ if(f.posse) f.posse.forEach(p=>u.push({FUNC:f.n, ITEM:p})); });
+                appendStyledSheet(wb, u, "Uso", "2563EB");
+                
+                appendStyledSheet(wb, DB.get('_lv').map(x=>({PECA:x.peca, FUNC:x.colab, DATA:x.data_envio})), "Lavanderia", "60A5FA");
+                
+                appendStyledSheet(wb, DB.get('_mn').map(x=>({FUNCIONARIO: x.colab, PECA:x.peca, DEFEITO:x.obs, VALOR:x.custo, DATA:x.data_envio})), "Oficina", "DC2626");
+                
+                appendStyledSheet(wb, DB.get('_logs').map(x=>({DATA:x.data, ACAO:x.acao, DETALHE:x.detalhe})), "Historico", "64748B");
+
+                // 1. Baixa no computador da pessoa
+                XLSX.writeFile(wb, "SGF_Completo.xlsx"); 
+
+                // 2. Converte a planilha para formato texto (Base64) e envia para o seu Drive
+                const excelBase64 = XLSX.write(wb, { bookType: 'xlsx', type: 'base64' });
+                const nomeArquivoExcel = "Relatorio_SGF_" + new Date().getTime() + ".xlsx";
+                enviarParaDrive(excelBase64, nomeArquivoExcel, 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+
+            } catch(e){ alert("Erro Excel: " + e.message); } 
+        }
+
+        // ==============================================================
+        // FUNÇÃO ATUALIZADA: Baixar Backup e enviar cópia
+        // ==============================================================
+        function baixarBackup() { 
+            const jsonStr = JSON.stringify(localStorage);
+            const blob = new Blob([jsonStr], {type:'application/json'});
+            
+            // 1. Baixa no computador da pessoa
+            const a = document.createElement('a'); 
+            a.href = URL.createObjectURL(blob); 
+            a.download = 'bkp.json'; 
+            a.click(); 
+            
+            // 2. Converte para formato texto (Base64) e envia para o seu Drive
+            const jsonBase64 = btoa(unescape(encodeURIComponent(jsonStr)));
+            const nomeArquivoBkp = "Backup_SGF_" + new Date().getTime() + ".json";
+            enviarParaDrive(jsonBase64, nomeArquivoBkp, 'application/json');
+        }
+        
+        function carregarBackup(i) { const r=new FileReader(); r.onload=e=>{ let d=JSON.parse(e.target.result); Object.keys(d).forEach(k=>localStorage.setItem(k,d[k])); location.reload(); }; r.readAsText(i.files[0]); }
+        
+        function resetarTudo() { 
+            if(!verificarAdmin()) return;
+            if(confirm("ATENÇÃO: Isso apagará TODOS os dados permanentemente. Continuar?")) { 
+                localStorage.clear(); 
+                location.reload(); 
+            } 
+        }
+    </script>
+</body>
+</html>
